@@ -121,11 +121,11 @@ def prepare_avd(device: str, avd_name: str, dp_size: str):
     logger.info('Skin was added in config.ini')
 
 
-def appium_run(avd_name: str):
+def appium_run(devices: dict):
     """
     Run appium server.
 
-    :param avd_name: Name of android virtual device / emulator
+    :param devices: device dictionary containing device_name and avd_name
     """
     DEFAULT_LOG_PATH = '/var/log/supervisor/appium.log'
     cmd = 'appium --log {log}'.format(log=os.getenv('APPIUM_LOG', DEFAULT_LOG_PATH))
@@ -141,6 +141,9 @@ def appium_run(avd_name: str):
     grid_connect = convert_str_to_bool(str(os.getenv('CONNECT_TO_GRID', False)))
     logger.info('Connect to selenium grid? {connect}'.format(connect=grid_connect))
     if grid_connect:
+        if len(devices) > 1:
+            raise RuntimeError('Can only connect to grid with one device'
+                               'Please check docker image or Dockerfile!'.format(env))
         # Ubuntu 16.04 -> local_ip = os.popen('ifconfig eth0 | grep \'inet addr:\' | cut -d: -f2 | awk \'{ print $1}\'').read().strip()
         local_ip = os.popen('ifconfig eth0 | grep \'inet\' | cut -d: -f2 | awk \'{ print $2}\'').read().strip()
         try:
@@ -204,38 +207,52 @@ def create_node_config(avd_name: str, browser_name: str, appium_host: str, appiu
     with open(CONFIG_FILE, 'w') as cf:
         cf.write(json.dumps(config))
 
+def get_device_avd_names():
+    """Return dictionary of devices with respective avd_names e.g. '{"device_name": "avd_name"}'"""
+        devices = os.getenv('DEVICE', 'Nexus 5').split(",")
+        avd_names = os.getenv('AVD_NAME', None)
+        if avd_names:
+            if len(avd_names) != len(devices):
+                raise RuntimeError('Must provide AVD_NAME for each DEVICE'
+                                   'Please check docker image or Dockerfile!'.format(env))
+            else:
+                return {devices[i]: avd_names[i] for i in range(len(devices))}
+
+        else:
+            return {device: f"{device.replace(' ', '_').lower()}_{ANDROID_VERSION}" for device in devices}
 
 def run():
     """Run app."""
-    device = os.getenv('DEVICE', 'Nexus 5')
-    logger.info('Device: {device}'.format(device=device))
-    custom_args=os.getenv('EMULATOR_ARGS', '')
-    logger.info('Custom Args: {custom_args}'.format(custom_args=custom_args))
+    devices = get_device_avd_names()
+    for device in devices:
+        logger.info('Device: {device}'.format(device=device))
+        custom_args=os.getenv('EMULATOR_ARGS', '')
+        logger.info('Custom Args: {custom_args}'.format(custom_args=custom_args))
 
-    avd_name = os.getenv('AVD_NAME', '{device}_{version}'.format(device=device.replace(' ', '_').lower(), version=ANDROID_VERSION))
-    logger.info('AVD name: {avd}'.format(avd=avd_name))
-    is_first_run = not is_initialized(device)
+        avd_name = devices[device]
+        logger.info('AVD name: {avd}'.format(avd=avd_name))
+        is_first_run = not is_initialized(device)
 
-    dp_size = os.getenv('DATAPARTITION', '550m')
+        dp_size = os.getenv('DATAPARTITION', '550m')
 
-    if is_first_run:
-        logger.info('Preparing emulator...')
-        prepare_avd(device, avd_name, dp_size)
+        if is_first_run:
+            logger.info('Preparing emulator...')
+            prepare_avd(device, avd_name, dp_size)
 
-    logger.info('Run emulator...')
+        logger.info('Run emulator...')
 
-    if is_first_run:
-        logger.info('Emulator was not previously initialized. Preparing a new one...')
-        cmd = 'emulator/emulator @{name} -gpu swiftshader_indirect -accel on -wipe-data -writable-system -verbose {custom_args}'.format(name=avd_name, custom_args=custom_args)
-    else:
-        logger.info('Using previously initialized AVD...')
-        cmd = 'emulator/emulator @{name} -gpu swiftshader_indirect -accel on -verbose -writable-system {custom_args}'.format(name=avd_name, custom_args=custom_args)
+        if is_first_run:
+            logger.info('Emulator was not previously initialized. Preparing a new one...')
+            cmd = 'emulator/emulator @{name} -gpu swiftshader_indirect -accel on -wipe-data -writable-system -verbose {custom_args}'.format(name=avd_name, custom_args=custom_args)
+        else:
+            logger.info('Using previously initialized AVD...')
+            cmd = 'emulator/emulator @{name} -gpu swiftshader_indirect -accel on -verbose -writable-system {custom_args}'.format(name=avd_name, custom_args=custom_args)
 
     appium = convert_str_to_bool(str(os.getenv('APPIUM', False)))
     if appium:
         subprocess.Popen(cmd.split())
         logger.info('Run appium server...')
-        appium_run(avd_name)
+        appium_run(devices)
     else:
         result = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE).communicate()
 
