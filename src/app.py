@@ -209,26 +209,25 @@ def create_node_config(avd_name: str, browser_name: str, appium_host: str, appiu
 
 def get_device_avd_names():
     """Return dictionary of devices with respective avd_names e.g. '{"device_name": "avd_name"}'"""
-        devices = os.getenv('DEVICE', 'Nexus 5').split(",")
-        avd_names = os.getenv('AVD_NAME', None)
-        if avd_names:
-            if len(avd_names) != len(devices):
-                raise RuntimeError('Must provide AVD_NAME for each DEVICE'
-                                   'Please check docker image or Dockerfile!'.format(env))
-            else:
-                return {devices[i]: avd_names[i] for i in range(len(devices))}
-
+    devices = os.getenv('DEVICE', 'Nexus 5').split(",")
+    avd_names = os.getenv('AVD_NAME', None)
+    if avd_names:
+        if len(avd_names) != len(devices):
+            raise RuntimeError('Must provide AVD_NAME for each DEVICE'
+                               'Please check docker image or Dockerfile!'.format(env))
         else:
-            return {device: '{device}_{version}'.format(device=device.replace(' ', '_').lower(), version=ANDROID_VERSION) for device in devices}
+            return {devices[i]: avd_names[i] for i in range(len(devices))}
+
+    else:
+        return {device: '{device}_{version}'.format(device=device.replace(' ', '_').lower(), version=ANDROID_VERSION) for device in devices}
 
 def run():
     """Run app."""
     devices = get_device_avd_names()
+    custom_args=os.getenv('EMULATOR_ARGS', '')
+    logger.info('Custom Args: {custom_args}'.format(custom_args=custom_args))
     for device in devices:
         logger.info('Device: {device}'.format(device=device))
-        custom_args=os.getenv('EMULATOR_ARGS', '')
-        logger.info('Custom Args: {custom_args}'.format(custom_args=custom_args))
-
         avd_name = devices[device]
         logger.info('AVD name: {avd}'.format(avd=avd_name))
         is_first_run = not is_initialized(device)
