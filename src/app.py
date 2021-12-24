@@ -219,7 +219,7 @@ def get_device_avd_names():
                 return {devices[i]: avd_names[i] for i in range(len(devices))}
 
         else:
-            return {device: f"{device.replace(' ', '_').lower()}_{ANDROID_VERSION}" for device in devices}
+            return {device: '{device}_{version}'.format(device=device.replace(' ', '_').lower(), version=ANDROID_VERSION) for device in devices}
 
 def run():
     """Run app."""
