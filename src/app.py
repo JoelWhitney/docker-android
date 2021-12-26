@@ -218,7 +218,6 @@ def get_device_avd_names():
                                'Please check docker image or Dockerfile!'.format(env))
         else:
             return {devices[i]: avd_names[i] for i in range(len(devices))}
-
     else:
         return {device: '{device}_{version}'.format(device=device.replace(' ', '_').lower(), version=ANDROID_VERSION) for device in devices}
 
