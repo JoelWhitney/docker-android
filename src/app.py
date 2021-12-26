@@ -212,6 +212,7 @@ def get_device_avd_names():
     devices = os.getenv('DEVICE', 'Nexus 5').split(",")
     avd_names = os.getenv('AVD_NAME', None)
     if avd_names:
+        avd_names = avd_names.split(",")
         if len(avd_names) != len(devices):
             raise RuntimeError('Must provide AVD_NAME for each DEVICE'
                                'Please check docker image or Dockerfile!'.format(env))
